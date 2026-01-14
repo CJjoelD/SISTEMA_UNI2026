@@ -2,13 +2,14 @@
 import { PrismaClient } from '../src/generated/client-profiles';
 import 'dotenv/config';
 
-const prisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: process.env.DATABASE_URL_PROFILES,
-        },
-    },
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_PROFILES,
 });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
     console.log('🌱 Seeding Profiles DB...');
@@ -50,6 +51,20 @@ async function main() {
         }
     });
 
+    // 4. Subject References (NUEVO)
+    const subjectRefs = [
+        { id: 1, name: 'Programación I', careerId: 100, cicleNumber: 1 },
+        { id: 2, name: 'Base de Datos I', careerId: 100, cicleNumber: 3 },
+    ];
+
+    for (const ref of subjectRefs) {
+        await prisma.subjectReference.upsert({
+            where: { id: ref.id },
+            update: {},
+            create: ref
+        });
+    }
+
 
     // --- PROFILES ---
 
@@ -86,4 +101,5 @@ main()
     })
     .finally(async () => {
         await prisma.$disconnect();
+        await pool.end();
     });

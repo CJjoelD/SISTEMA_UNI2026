@@ -2,13 +2,15 @@
 import { PrismaClient } from '../src/generated/client-academic';
 import 'dotenv/config';
 
-const prisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: process.env.DATABASE_URL_ACADEMIC,
-        },
-    },
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+console.log('Connecting to:', process.env.DATABASE_URL_ACADEMIC ? 'URL is set' : 'URL IS MISSING');
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_ACADEMIC,
 });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
     console.log('🌱 Seeding Academic DB...');
@@ -88,4 +90,5 @@ main()
     })
     .finally(async () => {
         await prisma.$disconnect();
+        await pool.end();
     });
