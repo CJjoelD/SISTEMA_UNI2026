@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { PrismaProfilesService } from 'src/prisma/prisma-profiles.service';
 import { PaginationDto } from 'src/pagination/pagination.dto';
@@ -173,5 +173,93 @@ export class StudentService {
     }
   }
 
+  // --- NUEVAS CONSULTAS ACTIVIDAD PRÁCTICA ---
+
+  // Parte 1.1: Listar estudiantes activos junto con su carrera
+  async findActive() {
+    return await this.prisma.studentProfile.findMany({
+      where: {
+        user: { status: 'active' }
+      },
+      include: {
+        user: true,
+        career: true
+      }
+    });
+  }
+
+  // Parte 2.1: Operadores Lógicos (Active AND Career AND Period)
+  async findWithFilters(careerId: number, year: number) {
+    return await this.prisma.studentProfile.findMany({
+      where: {
+        AND: [
+          { user: { status: 'active' } },
+          { careerId: careerId },
+          {
+            studentSubjects: {
+              some: {
+                enrolledAt: {
+                  gte: new Date(`${year}-01-01`),
+                  lte: new Date(`${year}-12-31`)
+                }
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        user: true,
+        career: true,
+        _count: { select: { studentSubjects: true } }
+      }
+    });
+  }
+
+  // Parte 3: Consulta SQL Nativa (Reporte Estudiante, Carrera, Total Materias)
+  async getStudentReport() {
+    const report = await this.prisma.$queryRaw`
+      SELECT 
+        ur.name AS "studentName", 
+        cr.name AS "careerName", 
+        COUNT(ss.id)::int AS "totalSubjects"
+      FROM student_profile sp
+      JOIN user_reference ur ON sp.user_id = ur.id
+      JOIN career_reference cr ON sp.career_id = cr.id
+      LEFT JOIN student_subject ss ON sp.id = ss.student_profile_id
+      GROUP BY ur.name, cr.name
+      ORDER BY "totalSubjects" DESC
+    `;
+    return report;
+  }
+
+  // Bonus: Operación Transaccional (ACID) - Matricular estudiante
+  async enrollWithTransaction(studentId: number, subjectId: number) {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Verificar existencia del estudiante
+      const student = await tx.studentProfile.findUnique({ where: { userId: studentId } });
+      if (!student) throw new NotFoundException('Estudiante no encontrado');
+
+      // 2. Verificar existencia de la materia
+      const subject = await tx.subjectReference.findUnique({ where: { id: subjectId } });
+      if (!subject) throw new NotFoundException('Materia no encontrada');
+
+      // 3. Verificar si ya está matriculado
+      const existing = await tx.studentSubject.findFirst({
+        where: { studentProfileId: student.id, subjectId: subjectId }
+      });
+      if (existing) throw new BadRequestException('El estudiante ya está matriculado en esta materia');
+
+      // 4. Crear matrícula
+      const enrollment = await tx.studentSubject.create({
+        data: {
+          studentProfileId: student.id,
+          subjectId: subjectId,
+          status: 'enrolled'
+        }
+      });
+
+      return enrollment;
+    });
+  }
 }
 

@@ -151,4 +151,14 @@ export class SubjectService {
       throw new InternalServerErrorException('Error removing subject');
     }
   }
+
+  // --- NUEVAS CONSULTAS ACTIVIDAD PRÁCTICA ---
+
+  // Parte 1.2: Obtener las materias asociadas a una carrera específica
+  async findByCareer(careerId: number) {
+    return await this.prisma.subject.findMany({
+      where: { careerId: careerId },
+      include: { career: true }
+    });
+  }
 }

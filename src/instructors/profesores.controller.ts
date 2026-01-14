@@ -15,6 +15,18 @@ export class TeacherController {
     return this.teacherService.findAll(findWithPagination);
   }
 
+  @ApiOperation({ summary: 'Listar docentes con más de una materia' })
+  @Get('filter/busy')
+  findBusy() {
+    return this.teacherService.findBusyTeachers();
+  }
+
+  @ApiOperation({ summary: 'Filtrar docentes por lógica (Dictan OR Activos)' })
+  @Get('filter/special')
+  filterSpecial() {
+    return this.teacherService.filterSpecial();
+  }
+
   @ApiOperation({ summary: 'Get a instructor by ID' })
   @Get(':id')
   findOne(@Param('id') id: string) {

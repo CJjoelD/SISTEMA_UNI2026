@@ -20,7 +20,7 @@ export class TeacherService {
     try {
       const [data, total] = await Promise.all([
         this.prisma.userReference.findMany({
-          where: { roleId: 2 }, 
+          where: { roleId: 2 },
           skip,
           take: limit,
           include: {
@@ -166,5 +166,37 @@ export class TeacherService {
       }
       throw new InternalServerErrorException('Error removing teacher');
     }
+  }
+
+  // --- NUEVAS CONSULTAS ACTIVIDAD PRÁCTICA ---
+
+  // Parte 1.3: Listar docentes que imparten más de una asignatura
+  async findBusyTeachers() {
+    const teachers = await this.prisma.teacherProfile.findMany({
+      include: {
+        user: true,
+        _count: {
+          select: { subjects: true }
+        }
+      }
+    });
+    // Filtramos los que tienen más de 1 asignatura
+    return teachers.filter(t => t._count.subjects > 1);
+  }
+
+  // Parte 2.2: Filtrar docentes (Dictan asignaturas OR No inactivos)
+  async filterSpecial() {
+    return await this.prisma.teacherProfile.findMany({
+      where: {
+        OR: [
+          { subjects: { some: {} } }, // Dictan asignaturas
+          { NOT: { user: { status: 'inactive' } } } // No inactivos
+        ]
+      },
+      include: {
+        user: true,
+        subjects: true
+      }
+    });
   }
 }

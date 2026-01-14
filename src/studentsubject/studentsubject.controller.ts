@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe } from '@nestjs/common';
 import { StudentsubjectService } from './studentsubject.service';
 import { CreateStudentsubjectDto } from './dto/create-studentsubject.dto';
 import { UpdateStudentsubjectDto } from './dto/update-studentsubject.dto';
@@ -38,5 +38,16 @@ export class StudentsubjectController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.studentsubjectService.remove(+id);
+  }
+
+  // --- ENDPOINTS ACTIVIDAD PRÁCTICA ---
+
+  @ApiOperation({ summary: 'Listar matrículas de un estudiante por periodo' })
+  @Get('by-period/:studentId/:year')
+  findByPeriod(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('year', ParseIntPipe) year: number
+  ) {
+    return this.studentsubjectService.findByPeriod(studentId, year);
   }
 }

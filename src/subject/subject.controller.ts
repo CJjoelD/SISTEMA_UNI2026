@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
@@ -38,5 +38,13 @@ export class SubjectController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.subjectService.remove(+id);
+  }
+
+  // --- ENDPOINTS ACTIVIDAD PRÁCTICA ---
+
+  @ApiOperation({ summary: 'Listar materias por carrera' })
+  @Get('by-career/:careerId')
+  findByCareer(@Param('careerId', ParseIntPipe) careerId: number) {
+    return this.subjectService.findByCareer(careerId);
   }
 }

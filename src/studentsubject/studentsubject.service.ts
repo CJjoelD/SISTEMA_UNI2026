@@ -164,4 +164,22 @@ export class StudentsubjectService {
       throw new InternalServerErrorException('Error removing student subject relationship');
     }
   }
+
+  // --- NUEVAS CONSULTAS ACTIVIDAD PRÁCTICA ---
+
+  // Parte 1.4: Mostrar las matrículas de un estudiante en un período académico determinado
+  async findByPeriod(studentId: number, year: number) {
+    return await this.prisma.studentSubject.findMany({
+      where: {
+        studentProfileId: studentId,
+        enrolledAt: {
+          gte: new Date(`${year}-01-01`),
+          lte: new Date(`${year}-12-31`)
+        }
+      },
+      include: {
+        subject: true
+      }
+    });
+  }
 }
