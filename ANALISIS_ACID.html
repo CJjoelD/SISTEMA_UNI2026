@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis ACID - Sistema Universitario</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --code-bg: #f8fafc;
+            --border: #e2e8f0;
+        }
+
+        @media print {
+            body { padding: 0 !important; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: var(--bg);
+        }
+
+        header {
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+            letter-spacing: -0.025em;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 40px;
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
+            color: var(--text);
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            margin-top: 30px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 16px;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            border: 1px solid var(--border);
+        }
+
+        pre {
+            background: var(--code-bg);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        pre code {
+            border: none;
+            padding: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+
+        .property-card {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fbfcfe;
+        }
+
+        .property-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .property-title strong {
+            color: var(--primary);
+        }
+
+        ul {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.875rem;
+            color: var(--text-light);
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #eff6ff;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="badge">Análisis Técnico</div>
+        <h1>Propiedades ACID en la Gestión Universitaria</h1>
+        <p class="subtitle">Análisis de la operación de matriculación mediante transacciones de Prisma</p>
+    </header>
+
+    <section>
+        <p>Este documento analiza cómo se garantizan las propiedades <strong>ACID</strong> (Atomicidad, Consistencia, Aislamiento y Durabilidad) en el proceso crítico de matriculación de estudiantes del Sistema de Gestión Universitaria.</p>
+
+        <h2>Operación Analizada: <code>enrollWithTransaction</code></h2>
+        <p>El método se localiza en <code>src/student/estudiantes.service.ts</code>. Utiliza el motor de transacciones de Prisma para asegurar que el estado de la base de datos se mantenga íntegro ante cualquier fallo.</p>
+
+        <pre><code>async enrollWithTransaction(studentId: number, subjectId: number) {
+  return await this.prisma.$transaction(async (tx) => {
+    // 1. Verificar existencia del estudiante
+    const student = await tx.studentProfile.findUnique({ where: { userId: studentId } });
+    if (!student) throw new NotFoundException('Estudiante no encontrado');
+
+    // 2. Verificar existencia de la materia
+    const subject = await tx.subjectReference.findUnique({ where: { id: subjectId } });
+    if (!subject) throw new NotFoundException('Materia no encontrada');
+
+    // 3. Verificar si ya está matriculado
+    const existing = await tx.studentSubject.findFirst({
+      where: { studentProfileId: student.id, subjectId: subjectId }
+    });
+    if (existing) throw new BadRequestException('El estudiante ya está matriculado');
+
+    // 4. Crear matrícula
+    const enrollment = await tx.studentSubject.create({
+      data: {
+        studentProfileId: student.id,
+        subjectId: subjectId,
+        status: 'enrolled'
+      }
+    });
+
+    return enrollment;
+  });
+}</code></pre>
+    </section>
+
+    <section>
+        <div class="property-card">
+            <div class="property-title">1. <strong>A</strong>tomicidad (Atomicity)</div>
+            <p>Garantiza que todas las operaciones dentro de la transacción se completen con éxito o que ninguna se aplique.</p>
+            <ul>
+                <li>Todas las operaciones (búsqueda e inserción) están envueltas en <code>$transaction</code>.</li>
+                <li>Si ocurre una excepción en las validaciones o un error de red, Prisma realiza un <strong>rollback</strong> automático.</li>
+                <li>No existe el estado intermedio: o el estudiante está matriculado con éxito, o no se realizó ningún cambio.</li>
+            </ul>
+        </div>
+
+        <div class="property-card">
+            <div class="property-title">2. <strong>C</strong>onsistencia (Consistency)</div>
+            <p>Asegura que la base de datos pase de un estado válido a otro, respetando todas las reglas de integridad.</p>
+            <ul>
+                <li>Validación explícita de existencia para <code>student</code> y <code>subject</code>.</li>
+                <li>La lógica de negocio previene duplicados, evitando que un estudiante se registre dos veces en la misma materia.</li>
+                <li>Se mantienen las relaciones de integridad referencial definidas en el esquema.</li>
+            </ul>
+        </div>
+
+        <div class="property-card">
+            <div class="property-title">3. <strong>I</strong>aislamiento (Isolation)</div>
+            <p>Asegura que transacciones simultáneas no interfieran entre sí.</p>
+            <ul>
+                <li>El motor de la base de datos gestiona bloqueos de fila para prevenir "lecturas sucias".</li>
+                <li>Incluso bajo alta concurrencia, el sistema procesa las peticiones de forma que los estados intermedios no sean visibles para otras transacciones.</li>
+            </ul>
+        </div>
+
+        <div class="property-card">
+            <div class="property-title">4. <strong>D</strong>urabilidad (Durability)</div>
+            <p>Garantiza que una vez confirmada la transacción, los cambios persistan permanentemente.</p>
+            <ul>
+                <li>Una vez que <code>$transaction</code> retorna con éxito, los datos se han escrito en almacenamiento persistente.</li>
+                <li>El uso de logs de transacciones (WAL) asegura la recuperación de datos incluso ante fallos de hardware o energía inmediatamente posteriores al commit.</li>
+            </ul>
+        </div>
+    </section>
+
+    <footer>
+        <p>Sistema de Gestión Universitaria - Análisis de Integridad de Datos &copy; 2026</p>
+    </footer>
+</body>
+</html>
